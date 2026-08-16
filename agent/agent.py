@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from google import genai
 
 from tools.data_loader import load_csv
+from tools.schema import get_dataset_schema
 from tools.question_tools import (
     get_total,
     get_average,
@@ -35,9 +36,11 @@ Rules:
 3. Never perform numerical calculations yourself when a tool can do it.
 4. Base numerical answers only on actual tool results.
 5. Choose the most appropriate tool for the user's question.
-6. Use the exact dataset column names when calling tools.
-7. Clearly explain the result to the user.
-8. If the available tools cannot answer the question, say so.
+6. Use the dataset information provided in the input to understand
+   available columns and their data types.
+7. Use the exact dataset column names when calling tools.
+8. Clearly explain the result to the user.
+9. If the available tools cannot answer the question, say so.
 """
 
 
@@ -382,6 +385,20 @@ def serialize_tool_result(result):
     return result
 
 
+def create_dataset_context(df) -> str:
+    """
+    Create a concise description of the loaded dataset
+    for the Gemini agent.
+    """
+
+    schema = get_dataset_schema(df)
+
+    return json.dumps(
+        schema,
+        indent=2,
+    )
+
+
 def ask_datapilot(question: str) -> str:
     """Ask DataPilot a natural-language data question."""
 
@@ -391,9 +408,21 @@ def ask_datapilot(question: str) -> str:
 
     tools = create_tool_definitions()
 
+    dataset_context = create_dataset_context(df)
+
+    agent_input = f"""
+Dataset information:
+
+{dataset_context}
+
+User question:
+
+{question}
+"""
+
     interaction = client.interactions.create(
         model=MODEL,
-        input=question,
+        input=agent_input,
         system_instruction=SYSTEM_INSTRUCTION,
         tools=tools,
     )
@@ -426,7 +455,9 @@ def ask_datapilot(question: str) -> str:
                 f"({step.arguments})"
             )
 
-            print(f"[Result] {result}")
+            print(
+                f"[Result] {result}"
+            )
 
             function_results.append(
                 {
