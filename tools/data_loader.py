@@ -1,40 +1,32 @@
-from pathlib import Path
-
 import pandas as pd
 
 
-def load_csv(file_path: str) -> pd.DataFrame:
+def load_csv(path: str) -> pd.DataFrame:
     """
-    Load a CSV file into a pandas DataFrame.
+    Load a CSV/TSV-style dataset with automatic delimiter detection.
 
-    Args:
-        file_path: Path to the CSV file.
-
-    Returns:
-        Loaded pandas DataFrame.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
-        ValueError: If the file is empty or is not a CSV.
+    Supports common delimiters such as:
+    - comma ,
+    - tab \t
+    - semicolon ;
+    - pipe |
     """
 
-    path = Path(file_path)
-
-    if not path.exists():
-        raise FileNotFoundError(
-            f"CSV file not found: {file_path}"
+    try:
+        df = pd.read_csv(
+            path,
+            sep=None,
+            engine="python",
         )
 
-    if path.suffix.lower() != ".csv":
+    except Exception as error:
         raise ValueError(
-            "Only CSV files are currently supported."
-        )
-
-    df = pd.read_csv(path)
+            f"Could not load dataset '{path}': {error}"
+        ) from error
 
     if df.empty:
         raise ValueError(
-            "The CSV file is empty."
+            "Dataset is empty."
         )
 
     return df
