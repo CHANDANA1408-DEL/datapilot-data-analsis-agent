@@ -1,5 +1,5 @@
 import json
-
+from agent.gemini_client import create_gemini_client
 from dotenv import load_dotenv
 from google import genai
 
@@ -62,13 +62,6 @@ Rules:
 9. Clearly explain the result to the user.
 10. If the available tools cannot answer the question, say so.
 """
-
-
-def create_agent_client() -> genai.Client:
-    """Create the Gemini client."""
-
-    return genai.Client()
-
 
 def create_tool_definitions() -> list[dict]:
     """
@@ -642,19 +635,22 @@ class DataPilotAgent:
     Maintains conversation context across questions
     during the same application session.
     """
+    def __init__(self, dataset_path: str = DATASET_PATH):
 
-    def __init__(self):
+        self.client = create_gemini_client()
 
-        self.client = create_agent_client()
+        self.dataset_path = dataset_path
 
         self.df = load_csv(
-            DATASET_PATH
-        )
+        dataset_path
+    )
 
         self.tools = create_tool_definitions()
 
         self.previous_interaction_id = None
 
+   
+       
     def ask(
         self,
         question: str,
