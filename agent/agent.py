@@ -1,7 +1,7 @@
 import json
+
 from agent.gemini_client import create_gemini_client
 from dotenv import load_dotenv
-from google import genai
 
 from tools.data_loader import load_csv
 from tools.schema import get_dataset_schema
@@ -62,6 +62,7 @@ Rules:
 9. Clearly explain the result to the user.
 10. If the available tools cannot answer the question, say so.
 """
+
 
 def create_tool_definitions() -> list[dict]:
     """
@@ -394,7 +395,9 @@ def resolve_column_name(
     """
 
     if not column:
-        raise ValueError("Column name cannot be empty.")
+        raise ValueError(
+            "Column name cannot be empty."
+        )
 
     column_lower = column.strip().lower()
 
@@ -607,6 +610,7 @@ def serialize_tool_result(result):
     """
 
     if hasattr(result, "to_dict"):
+
         return result.to_dict(
             orient="records"
         )
@@ -635,22 +639,28 @@ class DataPilotAgent:
     Maintains conversation context across questions
     during the same application session.
     """
-    def __init__(self, dataset_path: str = DATASET_PATH):
+
+    def __init__(
+        self,
+        dataset_path: str = DATASET_PATH,
+    ):
 
         self.client = create_gemini_client()
 
         self.dataset_path = dataset_path
 
         self.df = load_csv(
-        dataset_path
-    )
+            dataset_path
+        )
 
         self.tools = create_tool_definitions()
 
         self.previous_interaction_id = None
 
-   
-       
+        # Stores the real Python/Pandas results
+        # so the UI can display evidence.
+        self.last_tool_results = []
+
     def ask(
         self,
         question: str,
@@ -659,6 +669,9 @@ class DataPilotAgent:
         Ask DataPilot a question while maintaining
         conversation context.
         """
+
+        # Clear evidence from the previous question.
+        self.last_tool_results = []
 
         dataset_context = create_dataset_context(
             self.df
@@ -740,7 +753,18 @@ User question:
                     self.df,
                 )
 
-                result = serialize_tool_result(
+                # Keep the ORIGINAL Python/Pandas result
+                # for Streamlit evidence display.
+                self.last_tool_results.append(
+                    {
+                        "tool": step.name,
+                        "arguments": step.arguments,
+                        "result": result,
+                    }
+                )
+
+                # Serialize only the copy sent to Gemini.
+                serialized_result = serialize_tool_result(
                     result
                 )
 
@@ -750,7 +774,7 @@ User question:
                 )
 
                 print(
-                    f"[Result] {result}"
+                    f"[Result] {serialized_result}"
                 )
 
                 function_results.append(
@@ -762,7 +786,7 @@ User question:
                             {
                                 "type": "text",
                                 "text": json.dumps(
-                                    result,
+                                    serialized_result,
                                     default=str,
                                 ),
                             }
