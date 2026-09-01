@@ -117,12 +117,25 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# --------------------------------------------------------------------------
+# Safety limits — protect the free-tier memory budget
+# --------------------------------------------------------------------------
+MAX_FILE_SIZE_MB = 20
+MAX_ROWS = 50000
+
 uploaded_file = st.file_uploader(
     "Upload your CSV dataset",
     type=["csv"],
 )
 
 if uploaded_file is not None:
+
+    if uploaded_file.size > MAX_FILE_SIZE_MB * 1024 * 1024:
+        st.error(
+            f"This file is too large for the current setup "
+            f"(limit: {MAX_FILE_SIZE_MB}MB). Please upload a smaller dataset."
+        )
+        st.stop()
 
     with tempfile.NamedTemporaryFile(
         delete=False,
@@ -134,6 +147,13 @@ if uploaded_file is not None:
 
     try:
         agent = DataPilotAgent(dataset_path)
+
+        if len(agent.df) > MAX_ROWS:
+            st.error(
+                f"This dataset has {len(agent.df):,} rows. "
+                f"Please limit uploads to {MAX_ROWS:,} rows or fewer for now."
+            )
+            st.stop()
 
         st.markdown('<div class="dp-section">DATASET LOADED</div>', unsafe_allow_html=True)
 
